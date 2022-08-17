@@ -1,3 +1,11 @@
+const GAME_STATE = {
+  FirstCardAwaits: 'FirstCardAwaits',
+  SecondCardAwaits: 'SecondCardAwaits',
+  CardsMatchFailed: 'CardsMatchFailed',
+  CardsMatched: 'CardsMatched',
+  GameFinished: 'GameFinished'
+}
+
 const Symbols = [
   'https://assets-lighthouse.alphacamp.co/uploads/image/file/17989/__.png', //黑桃
   'https://assets-lighthouse.alphacamp.co/uploads/image/file/17992/heart.png', // 愛心
@@ -6,14 +14,17 @@ const Symbols = [
 ]
 
 const view = {
-  getCardElement(index) {
+  getCardContent(index) {
     const number = this.teansformNumber((index % 13) + 1)
     const symbol = Symbols[Math.floor(index / 13)]
-    return `<div class="card">
-      <p>${number}</p>
-      <img src="${symbol}" alt="">
-      <p>${number}</p>
-    </div>`
+
+    return `<p>${number}</p>
+        <img src="${symbol}" alt="">
+        <p>${number}</p>`
+  },
+
+  getCardElement(index) {
+    return `<div class="card back" data-index="${index}"></div>`
   },
 
   teansformNumber(number) {
@@ -31,9 +42,30 @@ const view = {
     }
   },
 
-  displayCards() {
+  displayCards(indexs) {
     const rootElement = document.querySelector('#cards')
-    rootElement.innerHTML = utility.getRandomNumberArray(52).map(index => this.getCardElement(index)).join('')
+    rootElement.innerHTML = indexs.map(index => this.getCardElement(index)).join('')
+  },
+
+  flipCard(card) {
+    // 如果是背面
+    if (card.classList.contains('back')) {
+      // 回傳正面
+      card.classList.remove('back')
+      card.innerHTML = this.getCardContent(Number(card.dataset.index))
+      return
+    }
+
+    // 如果是正面
+
+    // 回傳背面
+    card.classList.add('back')
+    card.innerHTML = null
+  },
+
+  pairCard(card) {
+    card.classList.add('paired')
+    console.log('OK')
   }
 }
 
@@ -49,4 +81,67 @@ const utility = {
   }
 }
 
-view.displayCards()
+
+const model = {
+  revealedCards: [],
+  score: 0,
+
+  isRevealedCardsMatched() {
+    return this.revealedCards[0].dataset.index % 13 === this.revealedCards[1].dataset.index % 13
+  }
+}
+
+const controller = {
+  currentState: GAME_STATE.FirstCardAwaits,
+
+  generateCards() {
+    view.displayCards(utility.getRandomNumberArray(52))
+  },
+
+  // 依照不同遊戲狀態, 做不同行為
+  dispatchCardAction(card) {
+    if (!card.classList.contains('back')) retuen
+
+    switch (this.currentState) {
+      case GAME_STATE.FirstCardAwaits:
+        view.flipCard(card)
+        model.revealedCards.push(card)
+        this.currentState = GAME_STATE.SecondCardAwaits
+        break
+        
+      case GAME_STATE.SecondCardAwaits:
+        view.flipCard(card)
+        model.revealedCards.push(card)
+        
+        if (model.isRevealedCardsMatched()) {
+          // 配對正確
+          this.currentState = GAME_STATE.CardsMatched
+          view.pairCard(model.revealedCards[0])
+          view.pairCard(model.revealedCards[1])
+          model.revealedCards = []
+          this.currentState = GAME_STATE.FirstCardAwaits
+        } else {
+          // 配對失敗
+          this.currentState = GAME_STATE.CardsMatchFailed
+          setTimeout(() => {
+            view.flipCard(model.revealedCards[0])
+            view.flipCard(model.revealedCards[1])
+            model.revealedCards = []
+            this.currentState = GAME_STATE.FirstCardAwaits
+          }, 1000);
+        }
+        break
+    }
+
+    console.log('current state:', this.currentState)
+    console.log('revealedCards:', model.revealedCards)
+  }
+}
+
+controller.generateCards()
+
+document.querySelectorAll('.card').forEach(card => {
+  card.addEventListener('click', event => {
+    controller.dispatchCardAction(card)
+  })
+})
