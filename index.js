@@ -47,25 +47,34 @@ const view = {
     rootElement.innerHTML = indexs.map(index => this.getCardElement(index)).join('')
   },
 
-  flipCard(card) {
-    // 如果是背面
-    if (card.classList.contains('back')) {
-      // 回傳正面
-      card.classList.remove('back')
-      card.innerHTML = this.getCardContent(Number(card.dataset.index))
-      return
-    }
-
-    // 如果是正面
-
-    // 回傳背面
-    card.classList.add('back')
-    card.innerHTML = null
+  flipCards(...cards) {
+    cards.map(card => {
+      // 如果是背面
+      if (card.classList.contains('back')) {
+        // 回傳正面
+        card.classList.remove('back')
+        card.innerHTML = this.getCardContent(Number(card.dataset.index))
+        return
+      }
+  
+      // 回傳背面
+      card.classList.add('back')
+      card.innerHTML = null
+    })
   },
 
-  pairCard(card) {
-    card.classList.add('paired')
-    console.log('OK')
+  pairCards(...cards) {
+    cards.map(card => {
+      card.classList.add('paired')
+    })
+  },
+
+  renderScore(score) {
+    document.querySelector('.score').textContent = `Score: ${score}`
+  },
+
+  renderTriedTimes(times) {
+    document.querySelector('.tried').textContent = `You've tried: ${times} times`
   }
 }
 
@@ -85,10 +94,11 @@ const utility = {
 const model = {
   revealedCards: [],
   score: 0,
+  triedTime: 0,
 
   isRevealedCardsMatched() {
     return this.revealedCards[0].dataset.index % 13 === this.revealedCards[1].dataset.index % 13
-  }
+  }  
 }
 
 const controller = {
@@ -104,37 +114,39 @@ const controller = {
 
     switch (this.currentState) {
       case GAME_STATE.FirstCardAwaits:
-        view.flipCard(card)
+        view.flipCards(card)
         model.revealedCards.push(card)
         this.currentState = GAME_STATE.SecondCardAwaits
         break
         
       case GAME_STATE.SecondCardAwaits:
-        view.flipCard(card)
+        view.renderTriedTimes(++ model.triedTime)
+        view.flipCards(card)
         model.revealedCards.push(card)
         
         if (model.isRevealedCardsMatched()) {
           // 配對正確
+          view.renderScore(model.score += 10)
           this.currentState = GAME_STATE.CardsMatched
-          view.pairCard(model.revealedCards[0])
-          view.pairCard(model.revealedCards[1])
+          view.pairCards(...model.revealedCards)
           model.revealedCards = []
           this.currentState = GAME_STATE.FirstCardAwaits
         } else {
           // 配對失敗
           this.currentState = GAME_STATE.CardsMatchFailed
-          setTimeout(() => {
-            view.flipCard(model.revealedCards[0])
-            view.flipCard(model.revealedCards[1])
-            model.revealedCards = []
-            this.currentState = GAME_STATE.FirstCardAwaits
-          }, 1000);
+          setTimeout(this.resetCards, 1000);
         }
         break
     }
 
     console.log('current state:', this.currentState)
     console.log('revealedCards:', model.revealedCards)
+  },
+
+  resetCards() {
+    view.flipCards(...model.revealedCards)
+    model.revealedCards = []
+    controller.currentState = GAME_STATE.FirstCardAwaits
   }
 }
 
